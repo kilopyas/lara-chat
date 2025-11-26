@@ -7,6 +7,9 @@ Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('home');
 
+Route::get('/', function () {
+    return view('lobby');
+})->name('lobby');
 
 Route::get('/lobby', function ($roomId = 'general') {
     return view('chat', ['roomId' => $roomId]);

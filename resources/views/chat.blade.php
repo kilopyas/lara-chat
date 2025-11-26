@@ -5,15 +5,11 @@
     <title>Chat – Room {{ $roomId }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        * { box-sizing: border-box; }
         body {
             margin: 0;
             font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             background: #111827;
             color: #e5e7eb;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
         }
         header {
             padding: 10px 16px;
@@ -23,70 +19,50 @@
             justify-content: space-between;
             align-items: center;
         }
+        header h1 {
+            margin: 0;
+            font-size: 18px;
+        }
         header span {
-            font-size: 14px;
+            font-size: 13px;
             opacity: 0.8;
         }
         .chat-container {
-            flex: 1;
+            padding: 12px 16px;
+            height: calc(100vh - 120px);
             display: flex;
             flex-direction: column;
-            padding: 12px 16px;
-            overflow: hidden;
         }
         #messages {
             flex: 1;
             overflow-y: auto;
-            padding-right: 4px;
-        }
-        .message {
-            margin-bottom: 8px;
-            max-width: 80%;
-            padding: 6px 10px;
+            border: 1px solid #1f2937;
             border-radius: 8px;
+            padding: 10px;
+            background: #020617;
+        }
+        .msg {
+            margin-bottom: 6px;
             font-size: 14px;
         }
-        .message.me {
-            margin-left: auto;
-            background: #2563eb;
+        .msg.me {
+            color: #22c55e;
         }
-        .message.other {
-            margin-right: auto;
-            background: #374151;
+        .msg.other {
+            color: #60a5fa;
         }
-        .message .meta {
-            font-size: 11px;
-            opacity: 0.7;
-            margin-bottom: 2px;
-        }
-        .system {
-            text-align: center;
+        .msg.system {
+            color: #9ca3af;
             font-size: 12px;
-            opacity: 0.7;
-            margin: 4px 0;
+            text-align: center;
         }
         .input-area {
-            border-top: 1px solid #1f2937;
-            padding: 8px 12px;
+            margin-top: 10px;
             display: flex;
             gap: 8px;
             align-items: center;
-            background: #020617;
         }
         .input-area input[type="text"] {
-            width: 120px;
-            padding: 6px 8px;
-            border-radius: 6px;
-            border: 1px solid #374151;
-            background: #020617;
-            color: #e5e7eb;
-            font-size: 13px;
-        }
-        .input-area textarea {
-            flex: 1;
-            resize: none;
-            min-height: 40px;
-            max-height: 80px;
             padding: 6px 8px;
             border-radius: 6px;
             border: 1px solid #374151;
@@ -94,167 +70,150 @@
             color: #e5e7eb;
             font-size: 14px;
         }
-        .input-area button {
-            padding: 8px 14px;
-            border-radius: 6px;
+        #userName {
+            width: 140px;
+        }
+        #messageInput {
+            flex: 1;
+        }
+        button {
             border: none;
-            background: #22c55e;
-            color: #022c22;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            font-size: 14px;
         }
-        .input-area button:disabled {
-            opacity: 0.5;
-            cursor: default;
+        #sendBtn {
+            background: #22c55e;
+            color: #022c22;
         }
         #typingIndicator {
+            margin-top: 4px;
             font-size: 12px;
-            opacity: 0.7;
+            opacity: 0.75;
             min-height: 16px;
-            margin-top: 2px;
         }
     </style>
 </head>
 <body>
 <header>
-    <div>
-        <strong>Room: {{ $roomId }}</strong>
-        <div style="font-size: 12px; opacity: 0.8;">Simple Socket.IO Chat</div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <a href="/" 
+           style="padding: 6px 10px; background: #1f2937; border-radius: 6px; text-decoration: none; color: #e5e7eb; font-size: 13px;">
+            ← Back
+        </a>
+
+        <div>
+            <h1>Room: {{ $roomId }}</h1>
+            <span>Simple Socket.IO Chat</span>
+        </div>
     </div>
+
     <span id="connectionStatus">Connecting…</span>
 </header>
+
 
 <div class="chat-container">
     <div id="messages"></div>
     <div id="typingIndicator"></div>
+
+    <div class="input-area">
+        <input id="userName" type="text" value="User{{ rand(100,999) }}" placeholder="Your name">
+        <input id="messageInput" type="text" placeholder="Type a message...">
+        <button id="sendBtn" disabled>Send</button>
+    </div>
 </div>
 
-<div class="input-area">
-    <input id="userName" type="text" placeholder="Your name" value="User{{ rand(100,999) }}">
-    <textarea id="messageInput" placeholder="Type a message..."></textarea>
-    <button id="sendBtn" disabled>Send</button>
-</div>
-
-{{-- Socket.IO client (served via nginx proxy to /socket.io/) --}}
+{{-- socket.io client + global helper --}}
 <script src="/socket.io/socket.io.js"></script>
+<script src="/js/socket.js"></script>
+
 <script>
     const ROOM_ID = @json($roomId);
-    const userNameInput = document.getElementById('userName');
-    const messageInput = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
+
     const messagesEl = document.getElementById('messages');
     const typingIndicator = document.getElementById('typingIndicator');
     const connectionStatus = document.getElementById('connectionStatus');
+    const userNameInput = document.getElementById('userName');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
 
-    let socket = null;
+    let myId = null;
     let typingTimeout = null;
-    let mySocketId = null;
 
-    function addMessage({ userName, message, time, socketId }, isSystem = false) {
-        if (isSystem) {
-            const div = document.createElement('div');
-            div.className = 'system';
-            div.textContent = message;
-            messagesEl.appendChild(div);
-        } else {
-            const div = document.createElement('div');
-            const isMe = socketId && socketId === mySocketId;
-            div.className = 'message ' + (isMe ? 'me' : 'other');
-
-            const meta = document.createElement('div');
-            meta.className = 'meta';
-            const t = time ? new Date(time) : new Date();
-            meta.textContent = `${userName || 'Unknown'} • ${t.toLocaleTimeString()}`;
-
-            const body = document.createElement('div');
-            body.textContent = message;
-
-            div.appendChild(meta);
-            div.appendChild(body);
-            messagesEl.appendChild(div);
-        }
-
+    // add message to ui
+    // here
+    function addMessage(text, type = 'other') {
+        const div = document.createElement('div');
+        div.className = 'msg ' + type;
+        div.textContent = text;
+        messagesEl.appendChild(div);
         messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
-    function connectSocket() {
-        socket = io(); // same-origin, nginx will proxy to socket_server
+    // wire socket events via chatSocket
+    chatSocket.onConnect((socketId) => {
+        myId = socketId;
+        connectionStatus.textContent = 'Connected';
+        connectionStatus.style.color = '#22c55e';
+        sendBtn.disabled = false;
 
-        socket.on('connect', () => {
-            mySocketId = socket.id;
-            connectionStatus.textContent = 'Connected';
-            connectionStatus.style.color = '#22c55e';
-            sendBtn.disabled = false;
+        chatSocket.joinRoom(ROOM_ID, userNameInput.value || 'Guest');
+    });
 
-            socket.emit('join-room', {
-                roomId: ROOM_ID,
-                userName: userNameInput.value || 'Guest'
-            });
-        });
+    chatSocket.onDisconnect(() => {
+        connectionStatus.textContent = 'Disconnected';
+        connectionStatus.style.color = '#f97316';
+        sendBtn.disabled = true;
+    });
 
-        socket.on('disconnect', () => {
-            connectionStatus.textContent = 'Disconnected';
-            connectionStatus.style.color = '#f97316';
-            sendBtn.disabled = true;
-        });
+    chatSocket.onSystemMessage((data) => {
+        addMessage(`[System] ${data.message}`, 'system');
+    });
 
-        socket.on('chat-message', (data) => {
-            console.log('view chat-message');
-            addMessage(data, false);
-        });
+    chatSocket.onChatMessage((data) => {
+        const isMe = data.socketId === myId;
+        const prefix = isMe ? '(Me)' : `(${data.userName})`;
+        addMessage(`${prefix} ${data.message}`, isMe ? 'me' : 'other');
+    });
 
-        socket.on('system-message', (data) => {
-            addMessage(data, true);
-        });
+    chatSocket.onTyping(({ userName, isTyping }) => {
+        if (isTyping) {
+            typingIndicator.textContent = `${userName} is typing...`;
+        } else {
+            typingIndicator.textContent = '';
+        }
+    });
 
-        socket.on('typing', ({ userName, isTyping }) => {
-            if (isTyping) {
-                typingIndicator.textContent = `${userName} is typing...`;
-            } else {
-                typingIndicator.textContent = '';
-            }
-        });
-    }
-
+    // send message
     function sendMessage() {
         const message = messageInput.value.trim();
-        const userName = userNameInput.value.trim() || 'Guest';
-        if (!message || !socket || !socket.connected) return;
+        if (!message) return;
 
-        console.log('TEST sendMessage', socket.connected);
-        socket.emit('chat-message', {
-            roomId: ROOM_ID,
-            userName,
-            message,
-        });
-
+        const userName = userNameInput.value || 'Guest';
+        chatSocket.sendMessage(ROOM_ID, userName, message);
         messageInput.value = '';
-        socket.emit('typing', { roomId: ROOM_ID, userName, isTyping: false });
+        chatSocket.sendTyping(ROOM_ID, userName, false);
     }
 
+    sendBtn.addEventListener('click', sendMessage);
+
     messageInput.addEventListener('keydown', (e) => {
-        console.log('test');
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter') {
             e.preventDefault();
             sendMessage();
             return;
         }
 
-        const userName = userNameInput.value.trim() || 'Guest';
-        if (socket && socket.connected) {
-            socket.emit('typing', { roomId: ROOM_ID, userName, isTyping: true });
-            if (typingTimeout) clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => {
-                socket.emit('typing', { roomId: ROOM_ID, userName, isTyping: false });
-            }, 1000);
-        }
+        const userName = userNameInput.value || 'Guest';
+        chatSocket.sendTyping(ROOM_ID, userName, true);
+
+        if (typingTimeout) clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            chatSocket.sendTyping(ROOM_ID, userName, false);
+        }, 1000);
     });
-
-    sendBtn.addEventListener('click', sendMessage);
-
-    // start
-    connectSocket();
 </script>
 </body>
 </html>
