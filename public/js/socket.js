@@ -32,20 +32,22 @@ window.chatSocket = {
     },
 
     // room join
-    joinRoom(roomId, userName, roomName) {
+    joinRoom(roomId, userName, roomName, userId) {
         socket.emit('join-room', {
             roomId,
             userName,
-            roomName
+            roomName,
+            userId
         });
     },
 
     // chat messages
-    sendMessage(roomId, userName, message) {
+    sendMessage(roomId, userName, message, userId) {
         socket.emit('chat-message', {
             roomId,
             userName,
             message,
+            userId
         });
     },
 

@@ -153,6 +153,7 @@
     <script>
         const ROOM_ID = @json($roomId);
         const ROOM_NAME = @json($roomName);
+        const USER_ID = @json(auth()->id());
 
         const messagesEl = document.getElementById('messages');
         const typingIndicator = document.getElementById('typingIndicator');
@@ -184,7 +185,7 @@
             connectionStatus.style.color = '#22c55e';
             sendBtn.disabled = false;
 
-            chatSocket.joinRoom(ROOM_ID, userNameInput.value || 'Guest', ROOM_NAME);
+            chatSocket.joinRoom(ROOM_ID, userNameInput.value || 'Guest', ROOM_NAME, USER_ID);
         });
 
         chatSocket.onDisconnect(() => {
@@ -224,7 +225,7 @@
             if (!message) return;
 
             const userName = userNameInput.value || 'Guest';
-            chatSocket.sendMessage(ROOM_ID, userName, message);
+            chatSocket.sendMessage(ROOM_ID, userName, message, USER_ID);
             messageInput.value = '';
             chatSocket.sendTyping(ROOM_ID, userName, false);
         }

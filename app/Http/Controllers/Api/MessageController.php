@@ -7,6 +7,7 @@ use App\Models\Message;
 use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use App\Models\User;
 
 class MessageController extends Controller
 {
@@ -18,7 +19,7 @@ class MessageController extends Controller
         $messages = Message::where('room_id', $roomId)
             ->orderBy('created_at')
             ->limit($limit)
-            ->get(['room_id', 'user_name as userName', 'message', 'created_at as time']);
+            ->get(['room_id', 'user_name as userName', 'user_id as userId', 'message', 'created_at as time']);
 
         return $messages;
     }
@@ -27,12 +28,15 @@ class MessageController extends Controller
     {
         $data = $request->validate([
             'room_id' => 'required|string|max:255',
-            'user_name' => 'nullable|string|max:255',
+            'user_id' => 'required|integer|exists:users,id',
             'message' => 'required|string',
         ]);
 
+        $user = User::find($data['user_id']);
+        $userName = $user?->name ?? 'guest';
+
         // update last active
-        $room = Room::updateOrCreate(
+        Room::updateOrCreate(
             ['room_id' => $data['room_id']],
             [
                 'last_active_at' => Carbon::now(),
@@ -42,7 +46,8 @@ class MessageController extends Controller
         // add message
         $message = Message::create([
             'room_id' => $data['room_id'],
-            'user_name' => $data['user_name'] ?? 'guest',
+            'user_name' => $userName,
+            'user_id' => $data['user_id'],
             'message' => $data['message'],
         ]);
 

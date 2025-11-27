@@ -151,6 +151,7 @@
     <script src="/js/socket.js"></script>
 
     <script>
+        const USER_ID = @json(auth()->id());
         const roomsListEl = document.getElementById('roomsList');
         const roomsEmptyEl = document.getElementById('roomsEmpty');
         const roomNameInput = document.getElementById('roomNameInput');
@@ -221,7 +222,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ name: name }),
+                    body: JSON.stringify({ name: name, user_id: USER_ID }),
                 });
 
                 if (!res.ok) {

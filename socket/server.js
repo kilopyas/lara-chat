@@ -33,10 +33,11 @@ async function upsertRoom(roomId, name) {
   await api.post("/api/rooms", { room_id: roomId, name: name || roomId });
 }
 
-async function recordMessage(roomId, userName, message) {
+async function recordMessage(roomId, userName, message, userId) {
   await api.post("/api/messages", {
     room_id: roomId,
     user_name: userName || "guest",
+    user_id: userId || null,
     message,
   });
 }
@@ -117,27 +118,31 @@ io.on("connection", (socket) => {
   });
 
   // join a chat room
-  socket.on("join-room", async ({ roomId, userName, roomName }) => {
+  socket.on("join-room", async ({ roomId, userName, roomName, userId }) => {
     try {
       if (!roomId) roomId = "general";
       const safeUserName = userName || "guest";
+      const resolvedRoomName = roomName || roomId;
 
       // await upsertRoom(roomId, safeUserName);
 
       socket.join(roomId);
       socket.data.roomId = roomId;
       socket.data.userName = safeUserName;
-      socket.data.roomName = roomName || roomId;
+      socket.data.roomName = resolvedRoomName;
+      socket.data.userId = userId || null;
 
       // ensure room exists in our store
       let room = rooms.get(roomId);
       if (!room) {
         room = {
-          name: roomId,
+          name: resolvedRoomName,
           participants: new Map(),
           updatedAt: Date.now(),
         };
         rooms.set(roomId, room);
+      } else if (resolvedRoomName && room.name !== resolvedRoomName) {
+        room.name = resolvedRoomName;
       }
 
       // add / update participant
@@ -174,16 +179,18 @@ io.on("connection", (socket) => {
   });
 
   // receive chat messages from client
-  socket.on("chat-message", async ({ roomId, userName, message }) => {
+  socket.on("chat-message", async ({ roomId, userName, message, userId }) => {
     if (!message || !message.trim()) return;
 
     try {
       roomId = roomId || socket.data.roomId || "general";
       userName = userName || socket.data.userName || "guest";
+      const resolvedUserId = userId || socket.data.userId || null;
 
       const payload = {
         roomId,
         userName,
+        userId: resolvedUserId,
         message: message.trim(),
         time: new Date().toISOString(),
         socketId: socket.id,
@@ -201,7 +208,7 @@ io.on("connection", (socket) => {
       io.to(roomId).emit("chat-message", payload);
 
       try {
-        await recordMessage(roomId, userName, message);
+        await recordMessage(roomId, userName, message, resolvedUserId);
       } catch (err) {
         console.error("failed to persist message", err);
       }
