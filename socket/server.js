@@ -63,6 +63,11 @@ async function fetchRoomsFromDb() {
 
 async function buildRoomsList() {
   const dbRooms = await fetchRoomsFromDb();
+
+  if (!dbRooms || dbRooms.length === 0) {
+      return [];
+  }
+
   const list = dbRooms.map((r) => {
     const roomId = r.room_id || r.roomId;
     const lastActive = r.last_active_at || r.lastActiveAt || r.updated_at || r.updatedAt || r.created_at || r.createdAt;
@@ -74,17 +79,17 @@ async function buildRoomsList() {
     };
   });
 
-  // include active rooms not yet saved (edge cases)
-  for (const [roomId, room] of rooms.entries()) {
-    if (!list.find((r) => r.roomId === roomId)) {
-      list.push({
-        roomId,
-        name: room.name || roomId,
-        participantsCount: room.participants.size,
-        updatedAt: room.updatedAt || Date.now(),
-      });
-    }
-  }
+  // // include active rooms not yet saved (edge cases)
+  // for (const [roomId, room] of rooms.entries()) {
+  //   if (!list.find((r) => r.roomId === roomId)) {
+  //     list.push({
+  //       roomId,
+  //       name: room.name || roomId,
+  //       participantsCount: room.participants.size,
+  //       updatedAt: room.updatedAt || Date.now(),
+  //     });
+  //   }
+  // }
 
   list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   return list;

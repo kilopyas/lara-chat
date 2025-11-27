@@ -13,7 +13,6 @@ class ChatController extends Controller
     public function index($roomId = 'general')
     {
         $roomName = Room::where('room_id', $roomId)->value('name');
-        error_log("\n TEST:" . print_r($roomName, true), 3, "/var/www/html/storage/logs/laravel.log");
 
         if(!$roomName) {
             return redirect('/')->with('error', 'Room does not exist!');

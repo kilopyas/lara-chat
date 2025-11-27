@@ -222,8 +222,10 @@
             chatSocket.sendTyping(ROOM_ID, userName, false);
         }
 
+        // btn
         sendBtn.addEventListener('click', sendMessage);
 
+        // enter
         messageInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();

@@ -31,14 +31,15 @@ class MessageController extends Controller
             'message' => 'required|string',
         ]);
 
+        // update last active
         $room = Room::updateOrCreate(
             ['room_id' => $data['room_id']],
             [
-                'name' => $data['room_id'],
                 'last_active_at' => Carbon::now(),
             ]
         );
 
+        // add message
         $message = Message::create([
             'room_id' => $data['room_id'],
             'user_name' => $data['user_name'] ?? 'guest',
