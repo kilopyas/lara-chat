@@ -1,6 +1,6 @@
 @extends('partials.layout.layout')
 
-@section('title', "Chat – Room {$roomId}")
+@section('title', "Chat – Room {$roomName}")
 
 @push('head')
 <style>
@@ -116,7 +116,7 @@
             </a>
 
             <div>
-                <h1>Room: {{ $roomId }}</h1>
+                <h1>Room: {{ $roomName }}</h1>
                 <span>Simple Socket.IO Chat</span>
             </div>
         </div>
@@ -145,76 +145,84 @@
 
     <script>
         const ROOM_ID = @json($roomId);
+        const ROOM_NAME = @json($roomName);
 
         const messagesEl = document.getElementById('messages');
         const typingIndicator = document.getElementById('typingIndicator');
         const connectionStatus = document.getElementById('connectionStatus');
-    const userNameInput = document.getElementById('userName');
-    const messageInput = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
+        const userNameInput = document.getElementById('userName');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
 
-    let myId = null;
-    let typingTimeout = null;
+        let myId = null;
+        let typingTimeout = null;
 
-    // add message to ui
-    // here
-    function addMessage(text, type = 'other') {
-        const wrap = document.createElement('div');
-        wrap.className = 'msg ' + type;
-        const bubble = document.createElement('div');
-        bubble.className = 'bubble';
-        bubble.textContent = text;
-        wrap.appendChild(bubble);
-        messagesEl.appendChild(wrap);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
-
-    // wire socket events via chatSocket
-    chatSocket.onConnect((socketId) => {
-        myId = socketId;
-        connectionStatus.textContent = 'Connected';
-        connectionStatus.style.color = '#22c55e';
-        sendBtn.disabled = false;
-
-        chatSocket.joinRoom(ROOM_ID, userNameInput.value || 'Guest');
-    });
-
-    chatSocket.onDisconnect(() => {
-        connectionStatus.textContent = 'Disconnected';
-        connectionStatus.style.color = '#f97316';
-        sendBtn.disabled = true;
-    });
-
-    chatSocket.onSystemMessage((data) => {
-        addMessage(`[System] ${data.message}`, 'system');
-    });
-
-    chatSocket.onChatMessage((data) => {
-        const isMe = data.socketId === myId;
-        const prefix = isMe ? '(Me)' : `(${data.userName})`;
-        addMessage(`${prefix} ${data.message}`, isMe ? 'me' : 'other');
-    });
-
-    chatSocket.onTyping(({ userName, isTyping }) => {
-        if (isTyping) {
-            typingIndicator.textContent = `${userName} is typing...`;
-        } else {
-            typingIndicator.textContent = '';
+        // add message to ui
+        // here
+        function addMessage(text, type = 'other') {
+            const wrap = document.createElement('div');
+            wrap.className = 'msg ' + type;
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.textContent = text;
+            wrap.appendChild(bubble);
+            messagesEl.appendChild(wrap);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
         }
-    });
 
-    // send message
-    function sendMessage() {
-        const message = messageInput.value.trim();
-        if (!message) return;
+        // wire socket events via chatSocket
+        chatSocket.onConnect((socketId) => {
+            myId = socketId;
+            connectionStatus.textContent = 'Connected';
+            connectionStatus.style.color = '#22c55e';
+            sendBtn.disabled = false;
 
-        const userName = userNameInput.value || 'Guest';
-        chatSocket.sendMessage(ROOM_ID, userName, message);
-        messageInput.value = '';
-        chatSocket.sendTyping(ROOM_ID, userName, false);
-    }
+            chatSocket.joinRoom(ROOM_ID, userNameInput.value || 'Guest', ROOM_NAME);
+        });
 
-    sendBtn.addEventListener('click', sendMessage);
+        chatSocket.onDisconnect(() => {
+            connectionStatus.textContent = 'Disconnected';
+            connectionStatus.style.color = '#f97316';
+            sendBtn.disabled = true;
+        });
+
+        chatSocket.onSystemMessage((data) => {
+            addMessage(`[System] ${data.message}`, 'system');
+        });
+
+        chatSocket.onChatHistory((history) => {
+            (history || []).forEach((msg) => {
+                const isMe = (msg.userName || '').toLowerCase() === (userNameInput.value || '').toLowerCase();
+                addMessage(`(${msg.userName || 'Guest'}) ${msg.message}`, isMe ? 'me' : 'other');
+            });
+        });
+
+        chatSocket.onChatMessage((data) => {
+            const isMe = data.socketId === myId;
+            const prefix = isMe ? '(Me)' : `(${data.userName})`;
+            addMessage(`${prefix} ${data.message}`, isMe ? 'me' : 'other');
+        });
+
+        chatSocket.onTyping(({ userName, isTyping }) => {
+            if (isTyping) {
+                typingIndicator.textContent = `${userName} is typing...`;
+            } else {
+                typingIndicator.textContent = '';
+            }
+        });
+
+        // send message
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            const userName = userNameInput.value || 'Guest';
+            chatSocket.sendMessage(ROOM_ID, userName, message);
+            messageInput.value = '';
+            chatSocket.sendTyping(ROOM_ID, userName, false);
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
 
         messageInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {

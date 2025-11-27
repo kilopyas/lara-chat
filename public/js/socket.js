@@ -26,15 +26,17 @@ window.chatSocket = {
 
     onRoomsList(callback) {
         socket.on('rooms-list', (rooms) => {
+            console.log('socket.js roomsList', rooms);
             callback(rooms || []);
         });
     },
 
     // room join
-    joinRoom(roomId, userName) {
+    joinRoom(roomId, userName, roomName) {
         socket.emit('join-room', {
             roomId,
             userName,
+            roomName
         });
     },
 
@@ -50,6 +52,12 @@ window.chatSocket = {
     onChatMessage(callback) {
         socket.on('chat-message', (data) => {
             callback(data);
+        });
+    },
+
+    onChatHistory(callback) {
+        socket.on('chat-history', (messages) => {
+            callback(messages || []);
         });
     },
 

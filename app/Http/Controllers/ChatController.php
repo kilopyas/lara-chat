@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Room;
 use Illuminate\Http\Request;
 
 class ChatController extends Controller
@@ -11,7 +12,14 @@ class ChatController extends Controller
      */
     public function index($roomId = 'general')
     {
-        return view('chat/index', ['roomId' => $roomId]);
+        $roomName = Room::where('room_id', $roomId)->value('name');
+        error_log("\n TEST:" . print_r($roomName, true), 3, "/var/www/html/storage/logs/laravel.log");
+
+        if(!$roomName) {
+            return redirect('/')->with('error', 'Room does not exist!');
+        }
+
+        return view('chat/index', ['roomId' => $roomId, 'roomName' => $roomName]);
     }
 
     /**

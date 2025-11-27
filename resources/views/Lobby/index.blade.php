@@ -137,7 +137,7 @@
     </div>
 @endsection
 
-@push('scripts')
+    @push('scripts')
     {{-- socket.io client + global helper --}}
     @include('partials.socket-config')
     <script src="{{ env('SOCKET_URL', 'http://localhost:3000') }}/socket.io/socket.io.js"></script>
@@ -204,10 +204,32 @@
         });
 
         // buttons
-        createJoinBtn.onclick = () => {
-            const room = roomNameInput.value.trim();
-            if (!room) return;
-            window.location.href = '/chat/' + encodeURIComponent(room);
+        createJoinBtn.onclick = async () => {
+            const name = roomNameInput.value.trim();
+            if (!name) return;
+
+            try {
+                const res = await fetch('/api/rooms', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name: name }),
+                });
+
+                if (!res.ok) {
+                    throw new Error('Failed to create/join room');
+                }
+
+                const resData = await res.json();
+                const roomId = resData.room_id || resData.roomId;
+                if (roomId) {
+                    window.location.href = '/chat/' + encodeURIComponent(roomId);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Could not create or join the room. Please try again.');
+            }
         };
 
         refreshBtn.onclick = () => {
