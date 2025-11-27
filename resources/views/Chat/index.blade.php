@@ -33,16 +33,41 @@
         border-radius: 8px;
         padding: 10px;
         background: var(--card);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
     }
     .msg {
-        margin-bottom: 6px;
+        display: flex;
         font-size: 14px;
     }
-    .msg.me { color: var(--primary); }
-    .msg.other { color: #60a5fa; }
+    .msg .bubble {
+        max-width: 75%;
+        padding: 8px 10px;
+        border-radius: 10px;
+        line-height: 1.35;
+        border: 1px solid var(--border);
+    }
+    .msg.me { justify-content: flex-end; }
+    .msg.me .bubble {
+        background: var(--primary);
+        color: #022c22;
+        border-color: var(--primary);
+    }
+    .msg.other { justify-content: flex-start; }
+    .msg.other .bubble {
+        background: #1f2937;
+        color: var(--text);
+    }
     .msg.system {
+        justify-content: center;
         color: var(--muted);
         font-size: 12px;
+    }
+    .msg.system .bubble {
+        background: transparent;
+        border: none;
+        padding: 0;
         text-align: center;
     }
     .input-area {
@@ -134,10 +159,13 @@
     // add message to ui
     // here
     function addMessage(text, type = 'other') {
-        const div = document.createElement('div');
-        div.className = 'msg ' + type;
-        div.textContent = text;
-        messagesEl.appendChild(div);
+        const wrap = document.createElement('div');
+        wrap.className = 'msg ' + type;
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        bubble.textContent = text;
+        wrap.appendChild(bubble);
+        messagesEl.appendChild(wrap);
         messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
