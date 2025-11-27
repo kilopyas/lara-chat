@@ -1,5 +1,6 @@
-// global socket.io connection
-window.socket = io({
+// global socket.io connection (explicit URL so it works when Laravel serves from a different port)
+const SOCKET_URL = window.SOCKET_URL || 'http://localhost:3000';
+window.socket = io(SOCKET_URL, {
     // you can add options here later if needed
 });
 

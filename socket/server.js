@@ -5,9 +5,16 @@ const PORT = 3000;
 
 const server = http.createServer();
 
+// allow multiple origins via CORS_ORIGINS (comma-separated) or single via CORS_ORIGIN
+const corsOrigins =
+  (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || "http://localhost:8000,http://localhost")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
 const io = new Server(server, {
   cors: {
-    origin: process.env.CORS_ORIGIN || "http://localhost",
+    origin: corsOrigins,
     methods: ["GET", "POST"],
   },
 });
