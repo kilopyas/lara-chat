@@ -121,7 +121,14 @@
             </div>
         </div>
 
-        <span id="connectionStatus">Connecting…</span>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 13px; opacity: 0.85;">{{ auth()->user()->name }}</span>
+            <span id="connectionStatus">Connecting…</span>
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="btn-secondary">Logout</button>
+            </form>
+        </div>
     </header>
 
 
@@ -130,7 +137,7 @@
         <div id="typingIndicator"></div>
 
         <div class="input-area">
-            <input id="userName" type="text" value="User{{ rand(100,999) }}" placeholder="Your name">
+            <input id="userName" type="text" value="{{ auth()->user()->name }}" readonly>
             <input id="messageInput" type="text" placeholder="Type a message...">
             <button id="sendBtn" disabled>Send</button>
         </div>

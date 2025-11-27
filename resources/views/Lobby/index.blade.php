@@ -105,7 +105,14 @@
             <h1>Chat Lobby</h1>
             <span>See active rooms and join or create one</span>
         </div>
-        <span id="connectionStatus">Connecting…</span>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 13px; opacity: 0.85;">{{ auth()->user()->name }}</span>
+            <span id="connectionStatus">Connecting…</span>
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="btn-secondary">Logout</button>
+            </form>
+        </div>
     </header>
 
     <div class="container">
