@@ -9,6 +9,10 @@ class Room extends Model
 {
     use HasFactory;
 
+    protected $casts = [
+        'last_active_at' => 'datetime',
+    ];
+
     protected $fillable = [
         'room_id',
         'name',

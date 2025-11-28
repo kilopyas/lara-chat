@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\LobbyController;
+use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -15,4 +16,6 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::middleware('auth')->group(function () {
     Route::get('/', [LobbyController::class, 'index'])->name('lobby');
     Route::get('/chat/{roomId?}', [ChatController::class, 'index'])->name('chat');
+    Route::get('/settings', [SettingsController::class, 'index'])->name('rooms.settings');
+    Route::delete('/settings/rooms/{roomId}', [SettingsController::class, 'destroy'])->name('rooms.settings.destroy');
 });

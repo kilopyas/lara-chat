@@ -107,6 +107,11 @@
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
             <span style="font-size: 13px; opacity: 0.85;">{{ auth()->user()->name }}</span>
+            <a href="{{ route('rooms.settings') }}"
+               title="Room settings"
+               style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: #1f2937; color: var(--text); text-decoration: none; font-size: 16px;">
+                ⚙
+            </a>
             <span id="connectionStatus">Connecting…</span>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
