@@ -36,6 +36,6 @@ class SettingsController extends Controller
 
         $room->delete();
 
-        return redirect()->route('rooms.settings')->with('success', 'Room deleted.');
+        return redirect()->route('rooms.settings')->with('success', 'Room deleted.')->with('deleted_room_id', $roomId);
     }
 }

@@ -12,6 +12,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::get('/rooms', [RoomController::class, 'index']);
 Route::post('/rooms', [RoomController::class, 'store']);
 Route::delete('/rooms/{roomId}', [RoomController::class, 'destroy']);
+Route::post('/rooms/{roomId}/verify', [RoomController::class, 'verify']);
 Route::get('/rooms/{roomId}/messages', [MessageController::class, 'index']);
 
 Route::post('/messages', [MessageController::class, 'store']);

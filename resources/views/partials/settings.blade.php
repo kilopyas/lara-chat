@@ -111,6 +111,8 @@
                             <div style="font-weight: 600;">{{ $room->name }} ({{ $room->room_id }})</div>
                             <div class="meta">
                                 Last active: {{ optional($room->last_active_at)->diffForHumans() ?? 'n/a' }}
+                                <br>
+                                {{ $room->has_password ? 'Password protected' : 'Public room' }}
                             </div>
                         </div>
                         <form method="POST" action="{{ route('rooms.settings.destroy', $room->room_id) }}" onsubmit="return confirm('Delete this room? This cannot be undone.');">
@@ -124,3 +126,16 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    @if (session('deleted_room_id'))
+    {{-- socket.io client + global helper --}}
+    @include('partials.socket-config')
+    <script src="{{ env('SOCKET_URL', 'http://localhost:3000') }}/socket.io/socket.io.js"></script>
+    @php($socketJsVersion = @filemtime(public_path('js/socket.js')))
+    <script src="{{ asset('js/socket.js') }}?v={{ $socketJsVersion }}"></script>
+        <script>
+            chatSocket.performDeleteRoom("{{ session('deleted_room_id') }}");
+        </script>
+    @endif
+@endpush

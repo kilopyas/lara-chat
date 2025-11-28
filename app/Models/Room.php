@@ -18,5 +18,19 @@ class Room extends Model
         'name',
         'user_id',
         'last_active_at',
+        'password',
     ];
+
+    protected $hidden = [
+        'password',
+    ];
+
+    protected $appends = [
+        'has_password',
+    ];
+
+    public function getHasPasswordAttribute(): bool
+    {
+        return !empty($this->attributes['password']);
+    }
 }

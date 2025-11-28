@@ -32,12 +32,13 @@ window.chatSocket = {
     },
 
     // room join
-    joinRoom(roomId, userName, roomName, userId) {
+    joinRoom(roomId, userName, roomName, userId, password = null) {
         socket.emit('join-room', {
             roomId,
             userName,
             roomName,
-            userId
+            userId,
+            password,
         });
     },
 
@@ -83,6 +84,11 @@ window.chatSocket = {
         socket.on('typing', (data) => {
             callback(data);
         });
+    },
+
+    performDeleteRoom(roomId) {
+        console.log('PERFORM DELETE ROOM?', roomId);
+        socket.emit('perform-delete-room', { roomId });
     }
 };
 

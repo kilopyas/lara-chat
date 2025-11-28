@@ -148,12 +148,19 @@
     {{-- socket.io client + global helper --}}
     @include('partials.socket-config')
     <script src="{{ env('SOCKET_URL', 'http://localhost:3000') }}/socket.io/socket.io.js"></script>
-    <script src="/js/socket.js"></script>
+    @php($socketJsVersion = @filemtime(public_path('js/socket.js')))
+    <script src="{{ asset('js/socket.js') }}?v={{ $socketJsVersion }}"></script>
 
     <script>
         const ROOM_ID = @json($roomId);
         const ROOM_NAME = @json($roomName);
         const USER_ID = @json(auth()->id());
+        const PASSWORD_KEY = `roomPassword:${ROOM_ID}`;
+        
+        let roomPassword = sessionStorage.getItem(PASSWORD_KEY) || null;
+        if (roomPassword) {
+            sessionStorage.removeItem(PASSWORD_KEY);
+        }
 
         const messagesEl = document.getElementById('messages');
         const typingIndicator = document.getElementById('typingIndicator');
@@ -201,7 +208,7 @@
             sendBtn.disabled = false;
 
             console.log('ni join room');
-            chatSocket.joinRoom(ROOM_ID, userNameInput.value || 'Guest', ROOM_NAME, USER_ID);
+            chatSocket.joinRoom(ROOM_ID, userNameInput.value || 'Guest', ROOM_NAME, USER_ID, roomPassword);
         });
 
         chatSocket.onDisconnect(() => {

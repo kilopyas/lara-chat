@@ -87,7 +87,7 @@
         background: #1f2937;
         color: var(--text);
     }
-    input[type="text"] {
+    input[type="text"], input[type="password"] {
         width: 100%;
         border-radius: 8px;
         border: 1px solid var(--border);
@@ -125,9 +125,10 @@
             <div class="left">
                 <div class="card">
                     <h2>Create or Join a Room</h2>
-                    <p>Type a room name to join or create it.</p>
+                    <p>Type a room name to join or create it. Add a password to make it private (optional).</p>
 
                     <input id="roomNameInput" type="text" placeholder="Room name">
+                    <input id="roomPasswordInput" type="password" placeholder="Password (optional)" style="margin-top: 8px;">
 
                     <div style="margin-top: 8px; display: flex; gap: 8px;">
                         <button id="createJoinBtn" class="btn-primary">Create / Join</button>
@@ -153,13 +154,15 @@
     {{-- socket.io client + global helper --}}
     @include('partials.socket-config')
     <script src="{{ env('SOCKET_URL', 'http://localhost:3000') }}/socket.io/socket.io.js"></script>
-    <script src="/js/socket.js"></script>
+    @php($socketJsVersion = @filemtime(public_path('js/socket.js')))
+    <script src="{{ asset('js/socket.js') }}?v={{ $socketJsVersion }}"></script>
 
     <script>
         const USER_ID = @json(auth()->id());
         const roomsListEl = document.getElementById('roomsList');
         const roomsEmptyEl = document.getElementById('roomsEmpty');
         const roomNameInput = document.getElementById('roomNameInput');
+        const roomPasswordInput = document.getElementById('roomPasswordInput');
         const connectionStatus = document.getElementById('connectionStatus');
         const createJoinBtn = document.getElementById('createJoinBtn');
     const refreshBtn = document.getElementById('refreshBtn');
@@ -179,17 +182,58 @@
         rooms.forEach(room => {
             const div = document.createElement('div');
             div.className = 'room-item';
+            const isProtected = !!room.hasPassword;
+            const isOwner = room.ownerId && room.ownerId === USER_ID;
 
             const info = document.createElement('div');
             info.innerHTML = `
-                <div class="title">${room.name}</div>
-                <div class="meta">${room.participantsCount} participant(s)</div>
+                <div class="title">${room.name} ${isProtected ? '🔒' : ''}</div>
+                <div class="meta">${room.participantsCount} participant(s) • ${isProtected ? 'Password protected' : 'Public'}</div>
             `;
 
             const joinBtn = document.createElement('button');
             joinBtn.className = 'btn-secondary';
             joinBtn.textContent = 'Join';
-            joinBtn.onclick = () => {
+            joinBtn.onclick = async () => {
+                let passwordToUse = '';
+                if (isProtected && !isOwner) {
+                    passwordToUse = prompt('This room is password protected. Enter password to join:') || '';
+                }
+
+                if (isProtected && !isOwner && !passwordToUse.trim()) {
+                    alert('Password is required to join this room.');
+                    return;
+                }
+
+                if (isProtected && !isOwner) {
+                    try {
+                        const verifyRes = await fetch(`/api/rooms/${encodeURIComponent(room.roomId)}/verify`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                password: passwordToUse,
+                                user_id: USER_ID,
+                            }),
+                        });
+
+                        const verifyData = await verifyRes.json();
+                        if (!verifyRes.ok || !verifyData.ok) {
+                            alert(verifyData.message || 'Invalid password.');
+                            return;
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        alert('Could not verify the password. Please try again.');
+                        return;
+                    }
+                }
+
+                if (passwordToUse) {
+                    sessionStorage.setItem(`roomPassword:${room.roomId}`, passwordToUse);
+                }
+
                 window.location.href = '/chat/' + encodeURIComponent(room.roomId);
             };
 
@@ -219,6 +263,7 @@
         // buttons
         createJoinBtn.onclick = async () => {
             const name = roomNameInput.value.trim();
+            const password = roomPasswordInput.value;
             if (!name) return;
 
             try {
@@ -227,7 +272,11 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ name: name, user_id: USER_ID }),
+                    body: JSON.stringify({
+                        name: name,
+                        user_id: USER_ID,
+                        password: password || null,
+                    }),
                 });
 
                 if (!res.ok) {

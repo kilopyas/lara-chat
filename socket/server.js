@@ -77,8 +77,10 @@ async function buildRoomsList() {
     return {
       roomId,
       name: r.name || roomId,
+      ownerId: r.user_id || r.userId || null,
       participantsCount: rooms.get(roomId)?.participants.size || 0,
       updatedAt: lastActive ? new Date(lastActive).getTime() : 0,
+      hasPassword: !!(r.has_password || r.hasPassword || r.password),
     };
   });
 
@@ -120,7 +122,7 @@ io.on("connection", (socket) => {
   });
 
   // join a chat room
-  socket.on("join-room", async ({ roomId, userName, roomName, userId }) => {
+  socket.on("join-room", async ({ roomId, userName, roomName, userId, password }) => {
     try {
       if (!roomId) roomId = "general";
       const safeUserName = userName || "guest";
@@ -128,6 +130,30 @@ io.on("connection", (socket) => {
       const resolvedUserId = userId || null;
 
       // await upsertRoom(roomId, safeUserName);
+
+      // verify password if needed (non-owners)
+      try {
+        const verifyRes = await api.post(`/api/rooms/${encodeURIComponent(roomId)}/verify`, {
+          password: password || null,
+          user_id: resolvedUserId,
+        });
+
+        if (!verifyRes.data?.ok) {
+          socket.emit("system-message", {
+            message: verifyRes.data?.message || "You need a valid password to join this room.",
+            userName: "system",
+            time: new Date().toISOString(),
+          });
+          return;
+        }
+      } catch (err) {
+        socket.emit("system-message", {
+          message: "Incorrect password or room is protected.",
+          userName: "system",
+          time: new Date().toISOString(),
+        });
+        return;
+      }
 
       socket.join(roomId);
       socket.data.roomId = roomId;
@@ -271,6 +297,17 @@ io.on("connection", (socket) => {
       userName: "system",
       time: new Date().toISOString(),
     });
+  });
+
+  // handle room deletion from the memory
+  socket.on("perform-delete-room", ({ roomId }) => {
+
+    if (!roomId) return;
+
+    rooms.delete(roomId);
+    
+    // update lobby
+    broadcastRooms();
   });
 
   // handle disconnect
