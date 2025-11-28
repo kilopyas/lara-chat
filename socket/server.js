@@ -28,6 +28,8 @@ const api = axios.create({
 
 // in-memory room store: roomId -> { name, participants: Map<socketId,userName>, updatedAt }
 const rooms = new Map();
+// track which socket is active for a given userId to enforce single session
+const userSockets = new Map();
 
 async function upsertRoom(roomId, name) {
   await api.post("/api/rooms", { room_id: roomId, name: name || roomId });
@@ -123,6 +125,7 @@ io.on("connection", (socket) => {
       if (!roomId) roomId = "general";
       const safeUserName = userName || "guest";
       const resolvedRoomName = roomName || roomId;
+      const resolvedUserId = userId || null;
 
       // await upsertRoom(roomId, safeUserName);
 
@@ -130,7 +133,24 @@ io.on("connection", (socket) => {
       socket.data.roomId = roomId;
       socket.data.userName = safeUserName;
       socket.data.roomName = resolvedRoomName;
-      socket.data.userId = userId || null;
+      socket.data.userId = resolvedUserId;
+
+      // kick previous socket for this userId if present
+      if (resolvedUserId) {
+        const existingSocketId = userSockets.get(resolvedUserId);
+        if (existingSocketId && existingSocketId !== socket.id) {
+          const existingSocket = io.sockets.sockets.get(existingSocketId);
+          if (existingSocket) {
+            existingSocket.emit("system-message", {
+              message: "You were disconnected because your account logged in elsewhere.",
+              userName: "system",
+              time: new Date().toISOString(),
+            });
+            existingSocket.disconnect(true);
+          }
+        }
+        userSockets.set(resolvedUserId, socket.id);
+      }
 
       // ensure room exists in our store
       let room = rooms.get(roomId);
@@ -257,6 +277,7 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     const roomId = socket.data.roomId;
     const userName = socket.data.userName || "someone";
+    const userId = socket.data.userId;
 
     console.log('[TEST] DISCONNECTED SOCKET DATA:', socket.data);
     if (roomId) {
@@ -273,6 +294,10 @@ io.on("connection", (socket) => {
         userName: "system",
         time: new Date().toISOString(),
       });
+    }
+
+    if (userId && userSockets.get(userId) === socket.id) {
+      userSockets.delete(userId);
     }
 
     console.log("user disconnected:", socket.id);
