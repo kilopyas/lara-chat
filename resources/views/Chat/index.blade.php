@@ -228,7 +228,7 @@
         });
 
         chatSocket.onChatMessage((data) => {
-            const isMe = data.socketId === myId;
+            const isMe = data.userId === USER_ID;
             addMessage({ userName: data.userName, message: data.message, isMe, type: 'chat' });
         });
 
