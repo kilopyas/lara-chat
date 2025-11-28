@@ -164,18 +164,33 @@
 
         let myId = null;
         let typingTimeout = null;
+        let earliestMessage = null;
+        let loadingOlder = false;
+        let hasMore = true;
 
         // add message to ui
-        // here
-        function addMessage(text, type = 'other') {
+        function addMessage(msg, { prepend = false, autoScroll = true } = {}) {
+            const userName = msg.userName || 'Guest';
+            const isSystem = msg.type === 'system';
+            const isMe = isSystem ? false : !!msg.isMe;
             const wrap = document.createElement('div');
-            wrap.className = 'msg ' + type;
+            wrap.className = 'msg ' + (isSystem ? 'system' : (isMe ? 'me' : 'other'));
+
             const bubble = document.createElement('div');
             bubble.className = 'bubble';
-            bubble.textContent = text;
+            const prefix = isSystem ? '[System]' : (isMe ? '(Me)' : `(${userName})`);
+            bubble.textContent = isSystem ? `${prefix} ${msg.message}` : `${prefix} ${msg.message}`;
             wrap.appendChild(bubble);
-            messagesEl.appendChild(wrap);
-            messagesEl.scrollTop = messagesEl.scrollHeight;
+
+            if (prepend) {
+                messagesEl.insertBefore(wrap, messagesEl.firstChild);
+            } else {
+                messagesEl.appendChild(wrap);
+            }
+
+            if (autoScroll && !prepend) {
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            }
         }
 
         // wire socket events via chatSocket
@@ -185,6 +200,7 @@
             connectionStatus.style.color = '#22c55e';
             sendBtn.disabled = false;
 
+            console.log('ni join room');
             chatSocket.joinRoom(ROOM_ID, userNameInput.value || 'Guest', ROOM_NAME, USER_ID);
         });
 
@@ -195,20 +211,25 @@
         });
 
         chatSocket.onSystemMessage((data) => {
-            addMessage(`[System] ${data.message}`, 'system');
+            addMessage({ message: data.message, type: 'system' });
         });
 
         chatSocket.onChatHistory((history) => {
             (history || []).forEach((msg) => {
-                const isMe = (msg.userName || '').toLowerCase() === (userNameInput.value || '').toLowerCase();
-                addMessage(`(${msg.userName || 'Guest'}) ${msg.message}`, isMe ? 'me' : 'other');
+                const isMe = msg.userId ? msg.userId === USER_ID : (msg.userName || '').toLowerCase() === (userNameInput.value || '').toLowerCase();
+                addMessage({ ...msg, isMe, type: 'chat' }, { autoScroll: false });
             });
+
+            if (history && history.length) {
+                earliestMessage = history[0].id || earliestMessage;
+            }
+
+            messagesEl.scrollTop = messagesEl.scrollHeight;
         });
 
         chatSocket.onChatMessage((data) => {
             const isMe = data.socketId === myId;
-            const prefix = isMe ? '(Me)' : `(${data.userName})`;
-            addMessage(`${prefix} ${data.message}`, isMe ? 'me' : 'other');
+            addMessage({ userName: data.userName, message: data.message, isMe, type: 'chat' });
         });
 
         chatSocket.onTyping(({ userName, isTyping }) => {
@@ -249,5 +270,43 @@
                 chatSocket.sendTyping(ROOM_ID, userName, false);
             }, 1000);
         });
+
+        messagesEl.addEventListener('scroll', () => {
+            if (messagesEl.scrollTop <= 0) {
+                loadOlderMessages();
+            }
+        });
+
+        async function loadOlderMessages() {
+            if (loadingOlder || !hasMore || !earliestMessage) return;
+            loadingOlder = true;
+
+            const prevHeight = messagesEl.scrollHeight;
+            const prevTop = messagesEl.scrollTop;
+
+            try {
+                const res = await fetch(`/api/rooms/${ROOM_ID}/messages?limit=50&before=${encodeURIComponent(earliestMessage)}`);
+                if (!res.ok) throw new Error('Failed to fetch older messages');
+
+                const data = await res.json();
+                if (!Array.isArray(data) || data.length === 0) {
+                    hasMore = false;
+                    return;
+                }
+
+                earliestMessage = data[0].id || earliestMessage;
+                data.reverse().forEach((msg) => {
+                    const isMe = msg.userId ? msg.userId === USER_ID : (msg.userName || '').toLowerCase() === (userNameInput.value || '').toLowerCase();
+                    addMessage({ ...msg, isMe, type: 'chat' }, { prepend: true, autoScroll: false });
+                });
+
+                const newHeight = messagesEl.scrollHeight;
+                messagesEl.scrollTop = newHeight - prevHeight + prevTop;
+            } catch (err) {
+                console.error(err);
+            } finally {
+                loadingOlder = false;
+            }
+        }
     </script>
 @endpush

@@ -15,11 +15,21 @@ class MessageController extends Controller
     {
         $limit = (int) $request->query('limit', 50);
         $limit = $limit > 0 ? min($limit, 200) : 50;
+        $before = $request->query('before');
 
-        $messages = Message::where('room_id', $roomId)
-            ->orderBy('created_at')
+        $query = Message::where('room_id', $roomId);
+
+        if ($before) {
+            $query->where('id', '<', $before);
+        }
+
+        $messages = $query
+            ->orderByDesc('id')
             ->limit($limit)
-            ->get(['room_id', 'user_name as userName', 'user_id as userId', 'message', 'created_at as time']);
+            ->get(['id', 'room_id', 'user_name as userName', 'user_id as userId', 'message', 'created_at as time'])
+            // ->sortBy('time')
+            ->reverse()
+            ->values();
 
         return $messages;
     }
